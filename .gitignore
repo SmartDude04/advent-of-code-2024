@@ -1,0 +1,6 @@
+# Ignore all inputs to the code
+**/input.txt
+
+# Ignore PyCharm Folders
+.venv/
+.idea/
