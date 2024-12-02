@@ -1,5 +1,6 @@
 input_file = [line.strip().split() for line in open("input.txt", "r")]
 
+
 def safe_level(report: list[str]) -> bool:
     increasing = int(report[0]) < int(report[1])
     for i in range(1, len(report)):
@@ -10,6 +11,7 @@ def safe_level(report: list[str]) -> bool:
         if not increasing and int(report[i]) > int(report[i - 1]):
             return False
     return True
+
 
 total = 0
 for line in input_file:
@@ -27,7 +29,5 @@ for line in input_file:
             if safe_level(new_line):
                 total += 1
                 break
-
-
 
 print(total)
