@@ -1,105 +1,6 @@
-from enum import Enum
+def in_bounds(row: int, col: int, grid: list[str]) -> bool:
+    return 0 <= row < len(grid) and 0 <= col < len(grid[0])
 
-
-class Direction(Enum):
-    UP = (-1, 0)
-    RIGHT = (0, 1)
-    DOWN = (1, 0)
-    LEFT = (0, -1)
-
-
-def turn_right(dir: Direction) -> Direction:
-    if dir == Direction.UP:
-        return Direction.RIGHT
-    elif dir == Direction.RIGHT:
-        return Direction.DOWN
-    elif dir == Direction.DOWN:
-        return Direction.LEFT
-    elif dir == Direction.LEFT:
-        return Direction.UP
-    else:
-        exit(1)
-
-
-def turn_left(dir: Direction) -> Direction:
-    if dir == Direction.UP:
-        return Direction.LEFT
-    elif dir == Direction.RIGHT:
-        return Direction.UP
-    elif dir == Direction.DOWN:
-        return Direction.RIGHT
-    elif dir == Direction.LEFT:
-        return Direction.DOWN
-    else:
-        exit(1)
-
-
-def turn_around(dir: Direction) -> Direction:
-    if dir == Direction.UP:
-        return Direction.DOWN
-    elif dir == Direction.RIGHT:
-        return Direction.LEFT
-    elif dir == Direction.DOWN:
-        return Direction.UP
-    elif dir == Direction.LEFT:
-        return Direction.RIGHT
-    else:
-        exit(1)
-
-
-class Tracer:
-    def __init__(self, row: int, col: int, dir: Direction = None, grid: list[str] = None):
-        self.row: int = row
-        self.col: int = col
-        self.grid = grid
-        self.num_sides = 0
-        if dir is None:
-            self.dir = Direction.DOWN
-            self.start = Tracer(row, col, self.dir)
-        else:
-            self.dir = dir
-            self.start = None
-
-    def __eq__(self, other):
-        return self.row == other.row and self.col == other.col and self.dir == other.dir
-
-    def move(self) -> bool:
-        if self.num_sides != 0 and self == self.start:
-            return False
-
-        # If we are good to turn right, we should do so to stay on the edge
-        if 0 <= self.row + turn_right(self.dir).value[0] < len(self.grid) and \
-                0 <= self.col + turn_right(self.dir).value[1] < len(self.grid[0]):
-            if self.grid[self.row + turn_right(self.dir).value[0]][self.col + turn_right(self.dir).value[1]] == \
-                    self.grid[self.row][self.col]:
-                self.num_sides += 1
-                self.dir = turn_right(self.dir)
-
-                # Then move forward
-                self.row += self.dir.value[0]
-                self.col += self.dir.value[1]
-                return True
-
-        # Check if good to move in front
-        if 0 <= self.row + self.dir.value[0] < len(self.grid) and \
-                0 <= self.col + self.dir.value[1] < len(self.grid[0]):
-            if self.grid[self.row + self.dir.value[0]][self.col + self.dir.value[1]] == self.grid[self.row][self.col]:
-                # Good to move, so just advance
-                self.row += self.dir.value[0]
-                self.col += self.dir.value[1]
-                return True
-
-        # If we aren't able to move forward or turn right keep turning left until you are able to move, or you
-        # get back to the beginning
-        while (self != self.start or self.num_sides == 0) and \
-                (not (0 <= self.row + self.dir.value[0] < len(self.grid)) or
-                 not (0 <= self.col + self.dir.value[1] < len(self.grid[0])) or
-                 self.grid[self.row + self.dir.value[0]][self.col + self.dir.value[1]] != self.grid[self.row][
-                     self.col]):
-            self.dir = turn_left(self.dir)
-            self.num_sides += 1
-
-        return True
 
 def get_area_sides(grid: list[str], row: int, col: int) -> tuple[set[tuple[int, int]], tuple[int, int]]:
     def get_area_helper(grid: list[str], cur_row: int, cur_col: int, done: set[tuple[int, int]]) -> int:
@@ -114,12 +15,49 @@ def get_area_sides(grid: list[str], row: int, col: int) -> tuple[set[tuple[int, 
         return area
 
     def get_sides_helper(grid: list[str], cur_row: int, cur_col: int) -> int:
-        cur_tracer = Tracer(cur_row, cur_col, grid=grid)
-        while True:
-            if not cur_tracer.move():
-                break
+        def get_shape_coords(grid: list[str], cur_row: int, cur_col: int, coords: set[tuple[int, int]]) -> None:
+            coords.add((cur_row, cur_col))
 
-        return cur_tracer.num_sides
+            for i in [(cur_row - 1, cur_col), (cur_row + 1, cur_col), (cur_row, cur_col - 1), (cur_row, cur_col + 1)]:
+                if 0 <= i[0] < len(grid) and 0 <= i[1] < len(grid[0]) and \
+                        grid[i[0]][i[1]] == grid[cur_row][cur_col] and i not in coords:
+                    get_shape_coords(grid, i[0], i[1], coords)
+
+        shape_coords: set[tuple[int, int]] = set()
+        get_shape_coords(grid, cur_row, cur_col, shape_coords)
+        num_sides = 0
+
+        # Depending on the pieces surrounding the coordinate, add a certain amount of sides
+        check = [((-1, 0), (0, 1)), ((0, 1), (1, 0)), ((1, 0), (0, -1)), ((0, -1), (-1, 0))]
+        cur_shape = grid[cur_row][cur_col]
+        for coord in shape_coords:
+            for diff in check:
+                first_diff = diff[0]
+                second_diff = diff[1]
+                third_diff = (first_diff[0] + second_diff[0], first_diff[1] + second_diff[1])
+
+                # Check bounds first
+                if 0 <= coord[0] + first_diff[0] < len(grid) and 0 <= coord[1] + first_diff[1] < len(grid[0]) and \
+                        0 <= coord[0] + second_diff[0] < len(grid) and 0 <= coord[1] + second_diff[1] < len(grid[0]):
+                    if grid[coord[0] + first_diff[0]][coord[1] + first_diff[1]] == cur_shape and \
+                            grid[coord[0] + second_diff[0]][coord[1] + second_diff[1]] == cur_shape:
+                        if grid[coord[0] + third_diff[0]][coord[1] + third_diff[1]] != cur_shape:
+                            num_sides += 1
+                    elif grid[coord[0] + first_diff[0]][coord[1] + first_diff[1]] != cur_shape and \
+                            grid[coord[0] + second_diff[0]][coord[1] + second_diff[1]] != cur_shape:
+                        num_sides += 1
+                elif not in_bounds(coord[0] + first_diff[0], coord[1] + first_diff[1], grid) and \
+                        in_bounds(coord[0] + second_diff[0], coord[1] + second_diff[1], grid):
+                    if grid[coord[0] + second_diff[0]][coord[1] + second_diff[1]] != cur_shape:
+                        num_sides += 1
+                elif not in_bounds(coord[0] + second_diff[0], coord[1] + second_diff[1], grid) and \
+                        in_bounds(coord[0] + first_diff[0], coord[1] + first_diff[1], grid):
+                    if grid[coord[0] + first_diff[0]][coord[1] + first_diff[1]] != cur_shape:
+                        num_sides += 1
+                else:
+                    num_sides += 1
+
+        return num_sides
 
     done_area_coords: set[tuple[int, int]] = set()
     area = get_area_helper(grid, row, col, done_area_coords)
