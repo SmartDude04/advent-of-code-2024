@@ -1,128 +1,82 @@
-import functools
-import enum
-import sys
-import queue
+# Using priority queue in Dijkstra's algorithm
+import heapq
+
+def get_weight_values(maze: list[str], cur_loc: tuple[int, int], prev_loc: tuple[int, int]) -> dict[tuple[int, int], int]:
+    weights: dict[tuple[int, int], int] = {}
+    direction = (cur_loc[0] - prev_loc[0], cur_loc[1] - prev_loc[1])
+    for cur_direction in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+        if maze[cur_loc[0] + cur_direction[0]][cur_loc[1] + cur_direction[1]] == ".":
+            weights.update({(cur_loc[0] + cur_direction[0], cur_loc[1] + cur_direction[1]): 1001})
+    if prev_loc in weights:
+        weights[prev_loc] = 2001
+    if (cur_loc[0] + direction[0], cur_loc[1] + direction[1]) in weights:
+        weights[(cur_loc[0] + direction[0], cur_loc[1] + direction[1])] = 1
+    return weights
 
 
-sys.setrecursionlimit(142**2 + 128)
-
-class Direction(enum.Enum):
-    UP: tuple[int, int] = (-1, 0)
-    DOWN: tuple[int, int] = (1, 0)
-    LEFT: tuple[int, int] = (0, -1)
-    RIGHT: tuple[int, int] = (0, 1)
-
-
-grid: list[list[str]] = [list(line.strip()) for line in open("input.txt")]
-cache = {}
-
-# def worker(task_queue, result_queue):
-#     while True:
-#         try:
-#             # Get task from queue
-#             data = task_queue.get(timeout=3)
-#         except queue.Empty:
-#             break
-#
-#         # Base case
-#         if grid[data[1]][data[2]] == "E":
-#             # Process the base-case
-#             result_queue.put(data[4])
-#         else:
-#             # Rest of recursive function; process data then recurse
-#             completed_coords = data[0]
-#             cur_row = data[1]
-#             cur_col = data[2]
-#             cur_coords: tuple[tuple[int, int]] = ((cur_row, cur_col),)
-#             cur_dir = data[3]
-#             cur_score = data[4]
-#             new_completed = data[0] + cur_coords
-#
-#             # Look around for free slots and recurse if found
-#             min_score: int = sys.maxsize
-#             turned = False
-
-def draw_maze(grid: list[list[str]], completed_coords) -> None:
-    print("-" * len(grid[0]))
-    for row, line in enumerate(grid):
-        for col, char in enumerate(line):
-            if (row, col) in completed_coords:
-                print("X", end="")
-            else:
-                print(char, end="")
-        print("")
-    print("-" * len(grid[0]))
+def get_adjacent_coords(maze: list[str], cur_loc: tuple[int, int]) -> list[tuple[int, int]]:
+    good_coords: list[tuple[int, int]] = []
+    for cur_direction in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+        if maze[cur_loc[0] + cur_direction[0]][cur_loc[1] + cur_direction[1]] == ".":
+            good_coords.append((cur_loc[0] + cur_direction[0], cur_loc[1] + cur_direction[1]))
+    return good_coords
 
 
-def get_lowest_score(completed_coords, cur_row: int, cur_col: int, cur_dir: Direction) -> int:
-    if (completed_coords, cur_row, cur_col, cur_dir) in cache:
-        print("Used cache")
-        return cache[(completed_coords, cur_row, cur_col, cur_dir)]
-
-    # if len(completed_coords) % 250 == 0:
-    #     print(f"Call stack length {len(completed_coords)}")
-    # Base case
-    if grid[cur_row][cur_col] == "E":
-        print("Reached end")
-        return 0
-
-    cur_coords: tuple[tuple[int, int]] = ((cur_row, cur_col),)
-    new_completed = completed_coords + cur_coords
-
-    # Look around for free slots and recurse if found
-    min_score: int = sys.maxsize
-    turned = False
-
-    if grid[cur_row + cur_dir.value[0]][cur_col + cur_dir.value[1]] in [".", "E"] and \
-            (cur_row + cur_dir.value[0], cur_col + cur_dir.value[1]) not in completed_coords:
-        score = get_lowest_score(new_completed, cur_row + cur_dir.value[0], cur_col + cur_dir.value[1], cur_dir)
-        min_score = score
-    if cur_dir != Direction.UP and \
-            grid[cur_row + Direction.UP.value[0]][cur_col + Direction.UP.value[1]] in [".", "E"] and \
-            (cur_row + Direction.UP.value[0], cur_col + Direction.UP.value[1]) not in completed_coords:
-        score = get_lowest_score(new_completed, cur_row + Direction.UP.value[0], cur_col + Direction.UP.value[1], Direction.UP)
-        if score < min_score:
-            turned = True
-            min_score = score
-    if cur_dir != Direction.DOWN and \
-            grid[cur_row + Direction.DOWN.value[0]][cur_col + Direction.DOWN.value[1]] in [".", "E"] and \
-            (cur_row + Direction.DOWN.value[0], cur_col + Direction.DOWN.value[1]) not in completed_coords:
-        score = get_lowest_score(new_completed, cur_row + Direction.DOWN.value[0], cur_col + Direction.DOWN.value[1], Direction.DOWN)
-        if score < min_score:
-            turned = True
-            min_score = score
-    if cur_dir != Direction.LEFT and \
-            grid[cur_row + Direction.LEFT.value[0]][cur_col + Direction.LEFT.value[1]] in [".", "E"] and \
-            (cur_row + Direction.LEFT.value[0], cur_col + Direction.LEFT.value[1]) not in completed_coords:
-        score = get_lowest_score(new_completed, cur_row + Direction.LEFT.value[0], cur_col + Direction.LEFT.value[1], Direction.LEFT)
-        if score < min_score:
-            turned = True
-            min_score = score
-    if cur_dir != Direction.RIGHT and \
-            grid[cur_row + Direction.RIGHT.value[0]][cur_col + Direction.RIGHT.value[1]] == '.' and \
-            (cur_row + Direction.RIGHT.value[0], cur_col + Direction.RIGHT.value[1]) not in completed_coords:
-        score = get_lowest_score(new_completed, cur_row + Direction.RIGHT.value[0], cur_col + Direction.RIGHT.value[1], Direction.RIGHT)
-        if score < min_score:
-            turned = True
-            min_score = score
-
-    # Turn back the square
-    if turned:
-        cache[(completed_coords, cur_row, cur_col, cur_dir)] = min_score + 1001
-        return 1001 + min_score
-    cache[(completed_coords, cur_row, cur_col, cur_dir)] = min_score + 1
-    return 1 + min_score
-
-def find_start(grid: list[list[str]]) -> tuple[int, int]:
-    for row, line in enumerate(grid):
+def get_start_coords(maze: list[str]) -> tuple[int, int]:
+    """Gets the starting coordinates and replaces the character with a period"""
+    for row, line in enumerate(maze):
         for col, char in enumerate(line):
             if char == "S":
-                grid[row][col] = "."
+                maze[row] = line[:col] + "." + line[col + 1:]
                 return row, col
 
-    raise ValueError("Unable to find starting location")
+
+def get_end_coords(maze: list[str]) -> tuple[int, int]:
+    """Gets the starting coordinates and replaces the character with a period"""
+    for row, line in enumerate(maze):
+        for col, char in enumerate(line):
+            if char == "E":
+                maze[row] = line[:col] + "." + line[col + 1:]
+                return row, col
 
 
+def dijkstra(maze: list[str], start_coords: tuple[int, int], end_coords: tuple[int, int]) -> int:
+    """Uses Dijkstra's algorithm to find the shortest path between two points"""
 
-start_row, start_col = find_start(grid)
-print(get_lowest_score(tuple(), start_row, start_col, Direction.RIGHT))
+    # Make the priority queue and add the starting coordinate
+    pq: list[tuple[int, tuple[int, int]]] = [(0, start_coords)]
+    # Make the distances hashmap and add the starting coordinate
+    distances: dict[tuple[int, int], int] = {start_coords: 0}
+    # Hashmap storing a list of all previous coordinates followed to get to this location
+    prev_locs: dict[tuple[int, int], list[tuple[int, int]]] = {start_coords: [(start_coords[0], start_coords[1] - 1)]}
+
+    while pq:
+        # Get the shortest path vertex from the priority queue in (length, coord) format
+        cur_vertex = heapq.heappop(pq)
+
+        # Get all adjacent coordinates to this one
+        adjacent_vertexes = get_adjacent_coords(maze, cur_vertex[1])
+
+        # Get the weight of the adjacent coordinates going from the previous vertex to this one
+        weights = get_weight_values(maze, cur_vertex[1], prev_locs[cur_vertex[1]][-1])
+
+        # Go through all adjacent coordinates of the current coordinate
+        for vertex in adjacent_vertexes:
+            # Make alternate distance for this vertex using the distance to its prev and its weight
+            alt_dist: int = distances[cur_vertex[1]] + weights[vertex]
+
+            if vertex not in distances or alt_dist < distances[vertex]:
+                distances.update({vertex: alt_dist})
+                if vertex not in prev_locs:
+                    prev_locs.update({vertex: []})
+                prev_locs[vertex].append(cur_vertex[1])
+
+                # Update the priority queue with the new distance to this vertex
+                heapq.heappush(pq, (alt_dist, vertex))
+
+    return distances[end_coords]
+
+
+maze: list[str] = [line.strip() for line in open("input.txt")]
+
+print(dijkstra(maze, get_start_coords(maze), get_end_coords(maze)))
