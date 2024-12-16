@@ -4,6 +4,8 @@ import sys
 import queue
 
 
+sys.setrecursionlimit(142**2 + 128)
+
 class Direction(enum.Enum):
     UP: tuple[int, int] = (-1, 0)
     DOWN: tuple[int, int] = (1, 0)
@@ -11,42 +13,54 @@ class Direction(enum.Enum):
     RIGHT: tuple[int, int] = (0, 1)
 
 
-class Score:
-    def __init__(self, score: int):
-        self.score = score
-
-
 grid: list[list[str]] = [list(line.strip()) for line in open("input.txt")]
+cache = {}
 
+# def worker(task_queue, result_queue):
+#     while True:
+#         try:
+#             # Get task from queue
+#             data = task_queue.get(timeout=3)
+#         except queue.Empty:
+#             break
+#
+#         # Base case
+#         if grid[data[1]][data[2]] == "E":
+#             # Process the base-case
+#             result_queue.put(data[4])
+#         else:
+#             # Rest of recursive function; process data then recurse
+#             completed_coords = data[0]
+#             cur_row = data[1]
+#             cur_col = data[2]
+#             cur_coords: tuple[tuple[int, int]] = ((cur_row, cur_col),)
+#             cur_dir = data[3]
+#             cur_score = data[4]
+#             new_completed = data[0] + cur_coords
+#
+#             # Look around for free slots and recurse if found
+#             min_score: int = sys.maxsize
+#             turned = False
 
-def worker(task_queue, result_queue):
-    while True:
-        try:
-            # Get task from queue
-            data = task_queue.get(timeout=3)
-        except queue.Empty:
-            break
-
-        # Base case
-        if grid[data[1]][data[2]] == "E":
-            # Process the base-case
-            result_queue.put(data[4])
-        else:
-            # Rest of recursive function; process data then recurse
-            completed_coords = data[0]
-            cur_row = data[1]
-            cur_col = data[2]
-            cur_coords: tuple[tuple[int, int]] = ((cur_row, cur_col),)
-            cur_dir = data[3]
-            cur_score = data[4]
-            new_completed = data[0] + cur_coords
-
-            # Look around for free slots and recurse if found
-            min_score: int = sys.maxsize
-            turned = False
+def draw_maze(grid: list[list[str]], completed_coords) -> None:
+    print("-" * len(grid[0]))
+    for row, line in enumerate(grid):
+        for col, char in enumerate(line):
+            if (row, col) in completed_coords:
+                print("X", end="")
+            else:
+                print(char, end="")
+        print("")
+    print("-" * len(grid[0]))
 
 
 def get_lowest_score(completed_coords, cur_row: int, cur_col: int, cur_dir: Direction) -> int:
+    if (completed_coords, cur_row, cur_col, cur_dir) in cache:
+        print("Used cache")
+        return cache[(completed_coords, cur_row, cur_col, cur_dir)]
+
+    # if len(completed_coords) % 250 == 0:
+    #     print(f"Call stack length {len(completed_coords)}")
     # Base case
     if grid[cur_row][cur_col] == "E":
         print("Reached end")
@@ -94,7 +108,9 @@ def get_lowest_score(completed_coords, cur_row: int, cur_col: int, cur_dir: Dire
 
     # Turn back the square
     if turned:
+        cache[(completed_coords, cur_row, cur_col, cur_dir)] = min_score + 1001
         return 1001 + min_score
+    cache[(completed_coords, cur_row, cur_col, cur_dir)] = min_score + 1
     return 1 + min_score
 
 def find_start(grid: list[list[str]]) -> tuple[int, int]:
