@@ -41,7 +41,7 @@ def get_end_coords(maze: list[str]) -> tuple[int, int]:
                 return row, col
 
 
-def dijkstra(maze: list[str], start_coords: tuple[int, int], end_coords: tuple[int, int]) -> (
+def dijkstra(maze: list[str], start_coords: tuple[int, int]) -> (
         tuple[dict[tuple[int, int], int], dict[tuple[int, int], list[tuple[int, int]]]]):
     """
     Uses Dijkstra's algorithm to find the shortest path between two points
@@ -102,67 +102,23 @@ def print_paths(maze: list[str], path: list[tuple[int, int]]) -> None:
         print("")
 
 
-def calc_tiles_for_optimal_path(maze: list[str], start_coords: tuple[int, int], end_coords: tuple[int, int]) -> list[tuple[int, int]]:
-    # This algorithm works by first generating the first min-valid path. It then iterates over the path and
-    # as it does so blocks different maze parts to generate different min paths. When it comes across one that
-    # has the same path length as the min, it will add its coordinates to the good_tiles list and to the block_coords
-    # list to be removed to possibly generate new paths
+def calc_tiles_for_optimal_path(maze: list[str], start_coords: tuple[int, int], end_coords: tuple[int, int]) -> int:
+    start_to_coord: dict[tuple[int, int], int] = dijkstra(maze, start_coords)[0]
+    end_to_coord: dict[tuple[int, int], int] = dijkstra(maze, end_coords)[0]
 
-    # First return value; this will serve as baseline for all operations
-    ret = dijkstra(maze, start_coords, end_coords)
+    paths = 0
 
-    # Coordinates that will eventually be blocked out in the while loop
-    block_coords: list[tuple[int, int]] = ret[1][end_coords]
-    # Add all coordinates from the end to the start to block_coords
-    cur = block_coords[0]
-    while cur != start_coords:
-        block_coords.append(ret[1][cur][0])
-        cur = block_coords[-1]
+    for row, line in enumerate(maze):
+        for col, char in enumerate(line):
+            if char == ".":
+                dist = start_to_coord[(row, col)] + end_to_coord[(row, col)]
+                if dist == start_to_coord[end_coords] or dist - 1000 == start_to_coord[end_coords] or dist - 2000 == start_to_coord[end_coords]:
+                    paths += 1
 
-    # Tiles that produce paths that are valid/lowest in value
-    good_tiles: list[tuple[int, int]] = block_coords
-
-    # Erase the starting coordinate from block_coords
-    block_coords = block_coords[:-1]
-
-    # Shortest path with unblocked maze
-    shortest_path: int = ret[0][end_coords]
-
-    # Keep blocking coordinates and rechecking the path
-    while block_coords:
-        # Block the current coordinate
-        cur_block = block_coords.pop()
-        maze[cur_block[0]] = maze[cur_block[0]][:cur_block[1]] + "#" + maze[cur_block[0]][cur_block[1] + 1:]
-
-        # Check the result of running dijkstra on this new map
-        res = dijkstra(maze, start_coords, end_coords)
-        if end_coords in res[0] and res[0][end_coords] == shortest_path:
-            # # If this path is also the same distance as the shortest, then add its coordinates to block_coords
-            # ret_coords = res[1][end_coords]
-            # cur = ret_coords[0]
-            # while cur != start_coords:
-            #     ret_coords.append(res[1][cur][0])
-            #     cur = ret_coords[-1]
-            #
-            # # Make sure to block good_tiles so the starting coords don't appear again
-            # update_list(block_coords, ret_coords, good_tiles)
-            #
-            # # Update good_tiles
-
-            print("Recursing...")
-            update_list(good_tiles, calc_tiles_for_optimal_path(maze, start_coords, end_coords))
-
-        # Change back the blocked coordinate
-        maze[cur_block[0]] = maze[cur_block[0]][:cur_block[1]] + "." + maze[cur_block[0]][cur_block[1] + 1:]
-
-    if end_coords not in good_tiles:
-        good_tiles.append(end_coords)
-    # print_paths(maze, good_tiles)
-
-    return good_tiles
+    return paths
 
 
 
 maze: list[str] = [line.strip() for line in open("input.txt")]
 
-print(len(calc_tiles_for_optimal_path(maze, get_start_coords(maze), get_end_coords(maze))))
+print(calc_tiles_for_optimal_path(maze, get_start_coords(maze), get_end_coords(maze)))
