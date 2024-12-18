@@ -42,6 +42,8 @@ def find_path(memory_grid: list[list[str]], completed_path: list[tuple[int, int]
                 # Add this vertex to the priority queue
                 heapq.heappush(pq, (alt_distance, vertex))
 
+    if (len(memory_grid) - 1, len(memory_grid[0]) - 1) not in distances.keys():
+        return -1
     return distances[(len(memory_grid) - 1, len(memory_grid[0]) - 1)]
 
 
@@ -49,12 +51,13 @@ size = 71
 memory_grid: list[list[str]] = [["." for _ in range(size)] for _ in range(size)]
 
 with open("input.txt") as f:
-    counter = 0
-    max_bytes = 1024
-    while (line := f.readline().strip()) and counter < max_bytes:
+    while (line := f.readline().strip()):
         coords = re.findall(r"[0-9]+", line)
         memory_grid[int(coords[1])][int(coords[0])] = "#"
-        counter += 1
 
-print(find_path(memory_grid, [(0, 0)]))
+        distance = find_path(memory_grid, coords)
+        if distance == -1:
+            print(coords)
+            break
+
 
